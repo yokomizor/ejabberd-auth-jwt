@@ -1,11 +1,11 @@
 %%%----------------------------------------------------------------------
 %%% File    : ejabberd_auth_jwt.erl
-%%% Author  : Rogerio da Silva Yokomizo <me@ro.ger.io>
+%%% Author  : Rogério da Silva Yokomizo <me@ro.ger.io>
 %%% Purpose : Authentification via JWT token
-%%% Created : 10 May 2018 by Rogerio da Silva Yokomizo <me@ro.ger.io>
+%%% Created : 10 May 2018 by Rogério da Silva Yokomizo <me@ro.ger.io>
 %%%
 %%%
-%%% Copyright 2018 Rogerio da Silva Yokomizo
+%%% Copyright 2018 Rogério da Silva Yokomizo
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
