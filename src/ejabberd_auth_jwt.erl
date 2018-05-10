@@ -1,11 +1,11 @@
 %%%----------------------------------------------------------------------
 %%% File    : ejabberd_auth_jwt.erl
-%%% Author  : Rogério da Silva Yokomizo <me@ro.ger.io>
+%%% Author  : Rogerio da Silva Yokomizo <me@ro.ger.io>
 %%% Purpose : Authentification via JWT token
-%%% Created : 10 May 2018 by Rogério da Silva Yokomizo <me@ro.ger.io>
+%%% Created : 10 May 2018 by Rogerio da Silva Yokomizo <me@ro.ger.io>
 %%%
 %%%
-%%% Copyright 2018 Rogério da Silva Yokomizo
+%%% Copyright 2018 Rogerio da Silva Yokomizo
 %%%
 %%% Licensed under the Apache License, Version 2.0 (the "License");
 %%% you may not use this file except in compliance with the License.
@@ -71,9 +71,13 @@ user_exists(_User, _Server) -> true.
 
 remove_user(_User, _Server) -> {error, not_allowed}.
 
-opt_type(jwtauth_secret) ->
-    fun (V) -> binary_to_list(iolist_to_binary(V)) end;
-opt_type(_) -> [jwtauth_secret].
+opt_type(jwtauth_strict_alg) -> fun iolist_to_binary/1;
+opt_type(jwtauth_user_claim) -> fun iolist_to_binary/1;
+opt_type(jwtauth_key) -> fun iolist_to_binary/1;
+opt_type(jwtauth_pem_file) -> fun iolist_to_binary/1;
+opt_type(_) ->
+    [jwtauth__key, jwtauth_pem_file, jwtauth_user_claim,
+     jwtauth_strict_alg].
 
 %%%----------------------------------------------------------------------
 %%% Internal functions
@@ -81,8 +85,8 @@ opt_type(_) -> [jwtauth_secret].
 check_password_jwt(User, Server, Fields)
     when is_map(Fields) ->
     UserClaim =
-	ejabberd_config:get_option({jwtauth_user_claim,
-				    Server}),
+	ejabberd_config:get_option({jwtauth_user_claim, Server},
+				   <<"sub">>),
     case maps:find(UserClaim, Fields) of
       {ok, User} -> true;
       _ -> false
@@ -105,6 +109,12 @@ verify_token(JWK, Alg, Token) ->
     jose_jwt:verify_strict(JWK, [Alg], Token).
 
 get_jwk(Server) ->
-    Key = ejabberd_config:get_option({jwtauth_secret,
-				      Server}),
-    #{<<"kty">> => <<"oct">>, <<"k">> => Key}.
+    case ejabberd_config:get_option({jwtauth_pem_file,
+				     Server})
+	of
+      RSAKeyFile -> jose_jwk:from_pem_file(RSAKeyFile);
+      undefined ->
+	  HS256Key = ejabberd_config:get_option({jwtauth_key,
+						 Server}),
+	  #{<<"kty">> => <<"oct">>, <<"k">> => HS256Key}
+    end.
