@@ -88,15 +88,23 @@ check_password_jwt(User, Server, Fields)
       _ -> false
     end;
 check_password_jwt(User, Server, Password) ->
-    Secret = ejabberd_config:get_option({jwtauth_secret,
-					 Server}),
-    JWK = #{<<"kty">> => <<"oct">>,
-	    <<"k">> => base64url:encode(Secret)},
-    try jose_jwt:verify_strict(JWK, [<<"HS256">>], Password)
-    of
+    JWK = get_jwk(Server),
+    Alg = ejabberd_config:get_option({jwtauth_strict_alg,
+				      Server}),
+    try verify_token(JWK, Alg, Password) of
       {true, #jose_jwt{fields = Fields}, _} ->
 	  check_password_jwt(User, Server, Fields);
       _ -> false
     catch
       _:_ -> false
     end.
+
+verify_token(JWK, undefined, Token) ->
+    jose_jwt:verify(JWK, Token);
+verify_token(JWK, Alg, Token) ->
+    jose_jwt:verify_strict(JWK, [Alg], Token).
+
+get_jwk(Server) ->
+    Key = ejabberd_config:get_option({jwtauth_secret,
+				      Server}),
+    #{<<"kty">> => <<"oct">>, <<"k">> => Key}.
