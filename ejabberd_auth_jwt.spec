@@ -1,0 +1,5 @@
+author: "Rogério da Silva Yokomizo <me@ro.ger.io>"
+category: "auth"
+summary: "Authentication via JWT token"
+home: "https://github.com/yokomizor/ejabberd-auth-jwt"
+url: "git@github.com:yokomizor/ejabberd-auth-jwt.git"
