@@ -1,0 +1,4 @@
+jwtauth_key: "" 
+jwtauth_pem_file: "" 
+jwtauth_user_claim: "sub" 
+jwtauth_strict_alg: "HS256" 
