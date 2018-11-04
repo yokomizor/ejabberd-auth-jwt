@@ -1,4 +1,7 @@
-jwtauth_key: "" 
-jwtauth_pem_file: "" 
-jwtauth_user_claim: "sub" 
-jwtauth_strict_alg: "HS256" 
+auth_method: jwt
+modules:
+  ejabberd_auth_jwt:
+    key: "SECRET" 
+    pem_file: "" 
+    user_claim: "sub" 
+    strict_alg: "HS256" 

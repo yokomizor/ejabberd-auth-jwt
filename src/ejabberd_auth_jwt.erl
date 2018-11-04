@@ -22,22 +22,16 @@
 
 -module(ejabberd_auth_jwt).
 
--behaviour(ejabberd_config).
+-behaviour(gen_mod).
 
 -author('me@ro.ger.io').
 
--behaviour(ejabberd_auth).
-
--export([check_password/4, opt_type/1,
+-export([check_password/4, depends/2, mod_options/1, mod_opt_type/1,
 	 plain_password_required/1, reload/1, remove_user/2,
-	 set_password/3, start/1, stop/1, store_type/1,
+	 set_password/3, start/1, start/2, stop/1, store_type/1,
 	 try_register/3, use_cache/1, user_exists/2]).
 
--include("ejabberd.hrl").
-
 -include("logger.hrl").
-
-%-include("jose_jwt.hrl").
 
 -record(jose_jwt, {fields = #{}  :: map()}).
 
@@ -45,6 +39,8 @@
 %%% API
 %%%----------------------------------------------------------------------
 start(_Host) -> ok.
+
+start(_Host, _Opts) -> ok.
 
 stop(_Host) -> ok.
 
@@ -71,13 +67,18 @@ user_exists(_User, _Server) -> true.
 
 remove_user(_User, _Server) -> {error, not_allowed}.
 
-opt_type(jwtauth_strict_alg) -> fun iolist_to_binary/1;
-opt_type(jwtauth_user_claim) -> fun iolist_to_binary/1;
-opt_type(jwtauth_key) -> fun iolist_to_binary/1;
-opt_type(jwtauth_pem_file) -> fun iolist_to_binary/1;
-opt_type(_) ->
-    [jwtauth__key, jwtauth_pem_file, jwtauth_user_claim,
-     jwtauth_strict_alg].
+depends(_Host, _Opts) -> [].
+
+mod_opt_type(strict_alg) -> fun iolist_to_binary/1;
+mod_opt_type(user_claim) -> fun iolist_to_binary/1;
+mod_opt_type(key) -> fun iolist_to_binary/1;
+mod_opt_type(pem_file) -> fun iolist_to_binary/1;
+mod_opt_type(_) ->
+    [key, pem_file, user_claim, strict_alg].
+
+mod_options(_) ->
+    [{key, []},{pem_file, []}, {user_claim, []},{strict_alg, []}].
+
 
 %%%----------------------------------------------------------------------
 %%% Internal functions
@@ -85,36 +86,35 @@ opt_type(_) ->
 check_password_jwt(User, Server, Fields)
     when is_map(Fields) ->
     UserClaim =
-	ejabberd_config:get_option({jwtauth_user_claim, Server},
-				   <<"sub">>),
+        gen_mod:get_module_opt(Server, ?MODULE, user_claim),
     case maps:find(UserClaim, Fields) of
       {ok, User} -> true;
       _ -> false
     end;
 check_password_jwt(User, Server, Password) ->
     JWK = get_jwk(Server),
-    Alg = ejabberd_config:get_option({jwtauth_strict_alg,
-				      Server}),
+    Alg = gen_mod:get_module_opt(Server, ?MODULE, strict_alg),
     try verify_token(JWK, Alg, Password) of
       {true, #jose_jwt{fields = Fields}, _} ->
 	  check_password_jwt(User, Server, Fields);
-      _ -> false
+      _ ->
+          false
     catch
       _:_ -> false
     end.
 
-verify_token(JWK, undefined, Token) ->
+verify_token(JWK, <<"">>, Token) ->
     jose_jwt:verify(JWK, Token);
 verify_token(JWK, Alg, Token) ->
     jose_jwt:verify_strict(JWK, [Alg], Token).
 
 get_jwk(Server) ->
-    case ejabberd_config:get_option({jwtauth_pem_file,
-				     Server})
+    case gen_mod:get_module_opt(Server, ?MODULE, pem_file)
 	of
-      RSAKeyFile -> jose_jwk:from_pem_file(RSAKeyFile);
-      undefined ->
-	  HS256Key = ejabberd_config:get_option({jwtauth_key,
-						 Server}),
-	  #{<<"kty">> => <<"oct">>, <<"k">> => HS256Key}
+      <<"">> ->
+          HS256Key = gen_mod:get_module_opt(Server, ?MODULE, key),
+          HS256KeyBase64 = base64url:encode(HS256Key),
+	  #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64};
+      RSAKeyFile ->
+          jose_jwk:from_pem_file(RSAKeyFile)
     end.
