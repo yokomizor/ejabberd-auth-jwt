@@ -20,32 +20,37 @@ git clone git@github.com:yokomizor/ejabberd-auth-jwt.git ~/.ejabberd-modules/sou
 # 3. Load module
 ejabberdctl module_install ejabberd_auth_jwt
 
-# 4. Set auth_method to use this module.
+# 4. Restart Ejabberd
 # 
-# Add the following config into your conf/ejabberd.yml
-#
-#  auth_method: jwt
-#
-# And reload ejabberd config.
-ejabberdctl reload_config
+# Just reloading config won't update auth_method :/
+ejabberdctl stop
+ejabberdctl start # or foreground
 ```
 
 
 ## Configuration examples
 
+Default config file: `~/.ejabberd-modules/ejabberd_auth_jwt/conf/ejabberd_auth_jwt.yml`.
+
 **Symetric HMAC key**
 
 ```
-jwtauth_key: "bXkgc2FmZSBrZXk=" # Base64 encoded key
-jwtauth_strict_alg: "HS256"
+auth_method: jwt
+modules:
+  ejabberd_auth_jwt:
+    key: "SECRET" 
+    strict_alg: "HS256" 
 ```
 
 
 **Asymetric RSA key**
 
 ```
-jwtauth_pem_file: "/home/ejabberd/conf/jwt.pem" # Public key
-jwtauth_strict_alg: "RS256"
+auth_method: jwt
+modules:
+  ejabberd_auth_jwt:
+    pem_file: "/home/ejabberd/conf/jwt.pem" # Public key 
+    strict_alg: "RS256" 
 ```
 
 
@@ -55,7 +60,10 @@ This module checks if the JWT claim `sub` matches the user jid.
 To use a custom JWT claim:
 
 ```
-jwtauth_user_claim: "myjid"
+auth_method: jwt
+modules:
+  ejabberd_auth_jwt:
+    user_claim: "myjid" 
 ```
 
 
