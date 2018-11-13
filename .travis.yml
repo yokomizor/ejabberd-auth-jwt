@@ -8,3 +8,4 @@ otp_release:
 script:
   - rebar3 eunit --cover
   - rebar3 cover --verbose
+  - rebar3 as test coveralls send
