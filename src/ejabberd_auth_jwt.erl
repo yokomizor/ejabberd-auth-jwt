@@ -170,6 +170,10 @@ mod_opt_type_test() ->
     ?assertEqual(<<"TEST">>, PemFile("TEST")),
     ?assertEqual([key, pem_file, user_claim, strict_alg], mod_opt_type(unknown)).
 
+mod_options_test() ->
+    ?assertEqual([{key, []},{pem_file, []}, {user_claim, []},{strict_alg, []}], mod_options(unknown)).
+
+
 verify_token_test() ->
     JWK = #{<<"kty">> => <<"oct">>, <<"k">> => <<"U0VDUkVU">>},
     ValidToken = <<"VALID">>,
