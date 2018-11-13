@@ -112,11 +112,11 @@ verify_token(JWK, Alg, Token) ->
 
 get_jwk(Server) ->
     case gen_mod:get_module_opt(Server, ?MODULE, pem_file)
-	of
+        of
       <<"">> ->
           HS256Key = gen_mod:get_module_opt(Server, ?MODULE, key),
           HS256KeyBase64 = base64url:encode(HS256Key),
-	  #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64};
+          #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64};
       RSAKeyFile ->
           jose_jwk:from_pem_file(RSAKeyFile)
     end.
@@ -144,12 +144,56 @@ use_cache_test() ->
 store_type_test() ->
     ?assertEqual(external, store_type("")).
 
+set_password_test() ->
+    ?assertEqual({error, not_allowed}, set_password("", "", "")).
+
+try_register_test() ->
+    ?assertEqual({error, not_allowed}, try_register("", "", "")).
+
+user_exists_test() ->
+    ?assert(user_exists("", "")).
+
+remove_user_test() ->
+    ?assertEqual({error, not_allowed}, remove_user("", "")).
+
+depends_test() ->
+    ?assertEqual([], depends("", "")).
+
+mod_opt_type_test() ->
+    StrictAlg = mod_opt_type(strict_alg),
+    UserClaim = mod_opt_type(user_claim),
+    Key = mod_opt_type(key),
+    PemFile = mod_opt_type(pem_file),
+    ?assertEqual(<<"TEST">>, StrictAlg("TEST")),
+    ?assertEqual(<<"TEST">>, UserClaim("TEST")),
+    ?assertEqual(<<"TEST">>, Key("TEST")),
+    ?assertEqual(<<"TEST">>, PemFile("TEST")),
+    ?assertEqual([key, pem_file, user_claim, strict_alg], mod_opt_type(unknown)).
+
 verify_token_test() ->
-    jose:json_module(jiffy), 
     JWK = #{<<"kty">> => <<"oct">>, <<"k">> => <<"U0VDUkVU">>},
-    ValidToken = <<"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ._XEngvIuxOcA-j7y_upRUbXli4DLToNf7HxH1XNmxSc">>,
+    ValidToken = <<"VALID">>,
+    InvalidToken = <<"INVALID">>,
+    ValidAlg = <<"VALID_ALG">>,
+    InvalidAlg = <<"INVALID_ALG">>,
+    meck:new(jose_jwt, [non_strict]),
+    meck:expect(jose_jwt, verify, fun(_, Token) -> { Token =:= ValidToken, ok, ok } end),
+    meck:expect(jose_jwt, verify_strict, fun(_, [Arg], Token) -> { Arg =:= ValidAlg andalso Token =:= ValidToken , ok, ok } end),
     { true, _, _ } = verify_token(JWK, <<"">>, ValidToken),
-    { true, _, _ } = verify_token(JWK, <<"HS256">>, ValidToken),
-    { false, _, _ } = verify_token(JWK, <<"RS256">>, ValidToken).
+    { true, _, _ } = verify_token(JWK, ValidAlg, ValidToken),
+    { false, _, _ } = verify_token(JWK, InvalidAlg, ValidToken),
+    { false, _, _ } = verify_token(JWK, ValidAlg, InvalidToken).
+
+get_jwk_test() ->
+    Server = <<"Server">>,
+    HS256Key = <<"SECRET">>,
+    HS256KeyBase64 = <<"SECRET_BASE64">>,
+    JWK = #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64},
+    meck:new(base64url, [non_strict]),
+    meck:expect(base64url, encode, fun(Input) -> case Input =:= HS256Key of true -> HS256KeyBase64; _ -> <<"ANY_BASE64">> end end),
+    meck:new(gen_mod, [non_strict]),
+    meck:expect(gen_mod, get_module_opt, fun(_, _, Opt) -> case Opt of pem_file -> <<"">>; key -> HS256Key end end),
+    ?assertEqual(JWK, get_jwk(Server)).
+
 -endif.
 
