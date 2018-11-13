@@ -1,0 +1,10 @@
+language: erlang
+
+otp_release:
+  - 17.5
+  - 18.3
+  - 19.2
+
+script:
+  - rebar3 eunit --cover
+  - rebar3 cover --verbose
