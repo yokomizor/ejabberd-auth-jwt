@@ -209,5 +209,15 @@ get_jwk_rsa_test() ->
     meck:expect(gen_mod, get_module_opt, fun(_, _, pem_file) -> PemFile end),
     ?assertEqual(JWK, get_jwk(Server)).
 
+check_password_jwt_is_map_test() ->
+    ValidUser = <<"ValidUser">>,
+    InvalidUser = <<"InvalidUser">>,
+    UserClaim = <<"sub">>,
+    Server = <<"Server">>,
+    Fields = #{UserClaim => ValidUser},
+    meck:expect(gen_mod, get_module_opt, fun(_, _, user_claim) -> UserClaim end),
+    ?assert(check_password_jwt(ValidUser, Server, Fields)),
+    ?assertNot(check_password_jwt(InvalidUser, Server, Fields)).
+
 -endif.
 
