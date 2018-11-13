@@ -238,7 +238,9 @@ check_password_jwt_test() ->
     meck:expect(jose_jwt, verify_strict, fun(_, [Arg], Token) -> { Arg =:= ValidAlg andalso Token =:= ValidToken, #jose_jwt{fields = Fields}, ok } end),
     ?assert(check_password_jwt(ValidUser, Server, ValidToken)),
     ?assertNot(check_password_jwt(ValidUser, Server, InvalidToken)),
-    ?assert(check_password(ValidUser, <<>>, Server, ValidToken)).
+
+    meck:expect(jose_jwt, verify_strict, fun(_, _, _) -> meck:exception(error, invalid_token) end),
+    ?assertNot(check_password(ValidUser, <<>>, Server, ValidToken)).
 
 -endif.
 
