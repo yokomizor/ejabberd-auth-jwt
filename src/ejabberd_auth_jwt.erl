@@ -199,5 +199,15 @@ get_jwk_test() ->
     meck:expect(gen_mod, get_module_opt, fun(_, _, Opt) -> case Opt of pem_file -> <<"">>; key -> HS256Key end end),
     ?assertEqual(JWK, get_jwk(Server)).
 
+get_jwk_rsa_test() ->
+    Server = <<"Server">>,
+    PemFile = <<"PEM_FILE">>,
+    JWK = #{<<"kty">> => <<"RSA">>, <<"k">> => <<"KEY">>},
+    meck:new(jose_jwk, [non_strict]),
+    meck:expect(jose_jwk, from_pem_file, fun(Input) -> case Input =:= PemFile of true -> JWK; _ -> <<"ANY_JWK">> end end),
+    % meck:new(gen_mod, [non_strict]),
+    meck:expect(gen_mod, get_module_opt, fun(_, _, pem_file) -> PemFile end),
+    ?assertEqual(JWK, get_jwk(Server)).
+
 -endif.
 
