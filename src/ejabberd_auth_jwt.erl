@@ -218,5 +218,27 @@ check_password_jwt_is_map_test() ->
     ?assert(check_password_jwt(ValidUser, Server, Fields)),
     ?assertNot(check_password_jwt(InvalidUser, Server, Fields)).
 
+check_password_jwt_test() ->
+    ValidUser = <<"ValidUser">>,
+    InvalidUser = <<"InvalidUser">>,
+    JWK = #{<<"kty">> => <<"oct">>, <<"k">> => <<"U0VDUkVU">>},
+    ValidToken = <<"VALID">>,
+    InvalidToken = <<"INVALID">>,
+    ValidAlg = <<"VALID_ALG">>,
+    InvalidAlg = <<"INVALID_ALG">>,
+    Fields = #{<<"sub">> => ValidUser},
+    PemFile = <<"PEM_FILE">>,
+    Server = <<"Server">>,
+    meck:expect(gen_mod, get_module_opt, fun(_, _, Opt) -> case Opt of
+                                                               pem_file -> PemFile;
+                                                               strict_alg -> ValidAlg;
+                                                               user_claim -> <<"sub">>
+                                                           end end),
+    meck:expect(jose_jwk, from_pem_file, fun(Input) -> case Input =:= PemFile of true -> JWK; _ -> <<"ANY_JWK">> end end),
+    meck:expect(jose_jwt, verify_strict, fun(_, [Arg], Token) -> { Arg =:= ValidAlg andalso Token =:= ValidToken, #jose_jwt{fields = Fields}, ok } end),
+    ?assert(check_password_jwt(ValidUser, Server, ValidToken)),
+    ?assertNot(check_password_jwt(ValidUser, Server, InvalidToken)),
+    ?assert(check_password(ValidUser, <<>>, Server, ValidToken)).
+
 -endif.
 
