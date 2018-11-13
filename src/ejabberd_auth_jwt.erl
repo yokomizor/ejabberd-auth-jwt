@@ -31,9 +31,11 @@
 	 set_password/3, start/1, start/2, stop/1, store_type/1,
 	 try_register/3, use_cache/1, user_exists/2]).
 
--include("logger.hrl").
-
 -record(jose_jwt, {fields = #{}  :: map()}).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 %%%----------------------------------------------------------------------
 %%% API
@@ -118,3 +120,36 @@ get_jwk(Server) ->
       RSAKeyFile ->
           jose_jwk:from_pem_file(RSAKeyFile)
     end.
+
+%%%----------------------------------------------------------------------
+%%% Tests
+%%%----------------------------------------------------------------------
+-ifdef(TEST).
+start_test() ->
+    ?assertEqual(ok, start("")),
+    ?assertEqual(ok, start("", "")).
+
+stop_test() ->
+    ?assertEqual(ok, stop("")).
+
+reload_test() ->
+    ?assertEqual(ok, reload("")).
+
+plain_password_required_test() ->
+    ?assert(plain_password_required("")).
+
+use_cache_test() ->
+    ?assertEqual(false, use_cache("")).
+
+store_type_test() ->
+    ?assertEqual(external, store_type("")).
+
+verify_token_test() ->
+    jose:json_module(jiffy), 
+    JWK = #{<<"kty">> => <<"oct">>, <<"k">> => <<"U0VDUkVU">>},
+    ValidToken = <<"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ._XEngvIuxOcA-j7y_upRUbXli4DLToNf7HxH1XNmxSc">>,
+    { true, _, _ } = verify_token(JWK, <<"">>, ValidToken),
+    { true, _, _ } = verify_token(JWK, <<"HS256">>, ValidToken),
+    { false, _, _ } = verify_token(JWK, <<"RS256">>, ValidToken).
+-endif.
+

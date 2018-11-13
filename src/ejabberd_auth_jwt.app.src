@@ -1,0 +1,15 @@
+{application, ejabberd_auth_jwt,
+ [{description, "ejabberd JWT authentication"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, ["Rogerio da Silva Yokomizo"]},
+  {licenses, ["Apache 2.0"]},
+  {links, [{ "GitHub", "https://github.com/yokomizor/ejabberd-auth-jwt"}]}
+ ]}.
