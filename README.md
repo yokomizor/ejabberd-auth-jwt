@@ -1,6 +1,7 @@
 # ejabberd JWT authentication
 
 [![Build Status](https://travis-ci.org/yokomizor/ejabberd-auth-jwt.svg?branch=master)](https://travis-ci.org/yokomizor/ejabberd-auth-jwt)
+[![Coverage Status](https://coveralls.io/repos/github/yokomizor/ejabberd-auth-jwt/badge.svg?branch=master)](https://coveralls.io/github/yokomizor/ejabberd-auth-jwt)
 
 This module enables [JWT](https://jwt.io/introduction/) authentication on [ejabberd](https://www.ejabberd.im/).
 
