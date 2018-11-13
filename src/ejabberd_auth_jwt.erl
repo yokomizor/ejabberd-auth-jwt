@@ -212,10 +212,9 @@ get_jwk_rsa_test() ->
 check_password_jwt_is_map_test() ->
     ValidUser = <<"ValidUser">>,
     InvalidUser = <<"InvalidUser">>,
-    UserClaim = <<"sub">>,
     Server = <<"Server">>,
-    Fields = #{UserClaim => ValidUser},
-    meck:expect(gen_mod, get_module_opt, fun(_, _, user_claim) -> UserClaim end),
+    Fields = #{<<"sub">> => ValidUser},
+    meck:expect(gen_mod, get_module_opt, fun(_, _, user_claim) -> <<"sub">> end),
     ?assert(check_password_jwt(ValidUser, Server, Fields)),
     ?assertNot(check_password_jwt(InvalidUser, Server, Fields)).
 
