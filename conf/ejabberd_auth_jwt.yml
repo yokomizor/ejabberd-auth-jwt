@@ -5,3 +5,4 @@ modules:
     pem_file: "" 
     user_claim: "sub" 
     strict_alg: "HS256" 
+    jwks_url: "" 
