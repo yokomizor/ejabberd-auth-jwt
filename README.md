@@ -70,7 +70,19 @@ modules:
 ```
 
 
-## TODO
+**[JWKS](https://auth0.com/docs/jwks) key**
 
-- [ ] Support [JWKS](https://auth0.com/docs/jwks)
+JWKS is a set of keys containing the public keys that should be used to verify
+any JWT issued by the authorization server. Servers usually expose a JWKS
+endpoint at https://example.com/.well-known/jwks.json.
+
+To configure this module to check a JWKS list:
+
+```
+auth_method: jwt
+modules:
+  ejabberd_auth_jwt:
+    user_claim: "username" 
+    jwks_url: "https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/jwks.json"
+```
 
