@@ -40,9 +40,13 @@
 %%%----------------------------------------------------------------------
 %%% API
 %%%----------------------------------------------------------------------
-start(_Host) -> ok.
+start(Host) ->
+    rest:start(Host),
+    ok.
 
-start(_Host, _Opts) -> ok.
+start(Host, _Opts) ->
+    rest:start(Host),
+    ok.
 
 stop(_Host) -> ok.
 
@@ -75,11 +79,17 @@ mod_opt_type(strict_alg) -> fun iolist_to_binary/1;
 mod_opt_type(user_claim) -> fun iolist_to_binary/1;
 mod_opt_type(key) -> fun iolist_to_binary/1;
 mod_opt_type(pem_file) -> fun iolist_to_binary/1;
+mod_opt_type(jwks_url) -> fun iolist_to_binary/1;
 mod_opt_type(_) ->
-    [key, pem_file, user_claim, strict_alg].
+    [key, pem_file, user_claim, strict_alg, jwks_url].
 
-mod_options(_) ->
-    [{key, []},{pem_file, []}, {user_claim, []},{strict_alg, []}].
+mod_options(_) -> [
+                   {key, []},
+                   {pem_file, []},
+                   {user_claim, []},
+                   {strict_alg, []},
+                   {jwks_url, []}
+                  ].
 
 
 %%%----------------------------------------------------------------------
@@ -94,7 +104,7 @@ check_password_jwt(User, Server, Fields)
       _ -> false
     end;
 check_password_jwt(User, Server, Password) ->
-    JWK = get_jwk(Server),
+    JWK = get_jwk(Server, Password),
     Alg = gen_mod:get_module_opt(Server, ?MODULE, strict_alg),
     try verify_token(JWK, Alg, Password) of
       {true, #jose_jwt{fields = Fields}, _} ->
@@ -105,18 +115,41 @@ check_password_jwt(User, Server, Password) ->
       _:_ -> false
     end.
 
+find_key(_Key, []) ->
+    false;
+find_key(Key, [Item|Tail]) ->
+    {JWK} = Item,
+    case lists:member({<<"kid">>, Key}, JWK) of
+        true -> maps:from_list(JWK);
+        _ -> find_key(Key, Tail)
+    end.
+
+get_jwks(Server, Url) ->
+    case rest:with_retry(get, [Server, Url, []], 2, 500) of
+        {ok, Code, Body} when Code == 200 orelse Code == 201 ->
+            {[{<<"keys">>, Keys}]} = Body,
+            Keys;
+        _ -> {error, jwks_error}
+    end.
+
 verify_token(JWK, <<"">>, Token) ->
     jose_jwt:verify(JWK, Token);
 verify_token(JWK, Alg, Token) ->
     jose_jwt:verify_strict(JWK, [Alg], Token).
 
-get_jwk(Server) ->
-    case gen_mod:get_module_opt(Server, ?MODULE, pem_file)
-        of
+get_jwk(Server, Password) ->
+    case gen_mod:get_module_opt(Server, ?MODULE, pem_file) of
       <<"">> ->
-          HS256Key = gen_mod:get_module_opt(Server, ?MODULE, key),
-          HS256KeyBase64 = base64url:encode(HS256Key),
-          #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64};
+        case gen_mod:get_module_opt(Server, ?MODULE, jwks_url) of
+          <<"">> ->
+            HS256Key = gen_mod:get_module_opt(Server, ?MODULE, key),
+            HS256KeyBase64 = base64url:encode(HS256Key),
+            #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64};
+          JwksUrl -> 
+            {_, Protected} = jose_jws:to_map(jose_jwt:peek_protected(Password)),
+            Kid = maps:get(<<"kid">>, Protected),
+            find_key(Kid, get_jwks(Server, JwksUrl))
+        end;
       RSAKeyFile ->
           jose_jwk:from_pem_file(RSAKeyFile)
     end.
@@ -126,6 +159,8 @@ get_jwk(Server) ->
 %%%----------------------------------------------------------------------
 -ifdef(TEST).
 start_test() ->
+    meck:new(rest, [non_strict]),
+    meck:expect(rest, start, fun(_) -> ok end),
     ?assertEqual(ok, start("")),
     ?assertEqual(ok, start("", "")).
 
@@ -164,14 +199,22 @@ mod_opt_type_test() ->
     UserClaim = mod_opt_type(user_claim),
     Key = mod_opt_type(key),
     PemFile = mod_opt_type(pem_file),
+    JwksUrl = mod_opt_type(jwks_url),
     ?assertEqual(<<"TEST">>, StrictAlg("TEST")),
     ?assertEqual(<<"TEST">>, UserClaim("TEST")),
     ?assertEqual(<<"TEST">>, Key("TEST")),
     ?assertEqual(<<"TEST">>, PemFile("TEST")),
-    ?assertEqual([key, pem_file, user_claim, strict_alg], mod_opt_type(unknown)).
+    ?assertEqual(<<"TEST">>, JwksUrl("TEST")),
+    ?assertEqual([key, pem_file, user_claim, strict_alg, jwks_url], mod_opt_type(unknown)).
 
 mod_options_test() ->
-    ?assertEqual([{key, []},{pem_file, []}, {user_claim, []},{strict_alg, []}], mod_options(unknown)).
+    ?assertEqual([
+                  {key, []},
+                  {pem_file, []},
+                  {user_claim, []},
+                  {strict_alg, []},
+                  {jwks_url, []}
+                 ], mod_options(unknown)).
 
 
 verify_token_test() ->
@@ -190,24 +233,31 @@ verify_token_test() ->
 
 get_jwk_test() ->
     Server = <<"Server">>,
+    Password = <<"PASS">>,
     HS256Key = <<"SECRET">>,
     HS256KeyBase64 = <<"SECRET_BASE64">>,
     JWK = #{<<"kty">> => <<"oct">>, <<"k">> => HS256KeyBase64},
     meck:new(base64url, [non_strict]),
     meck:expect(base64url, encode, fun(Input) -> case Input =:= HS256Key of true -> HS256KeyBase64; _ -> <<"ANY_BASE64">> end end),
     meck:new(gen_mod, [non_strict]),
-    meck:expect(gen_mod, get_module_opt, fun(_, _, Opt) -> case Opt of pem_file -> <<"">>; key -> HS256Key end end),
-    ?assertEqual(JWK, get_jwk(Server)).
+    meck:expect(gen_mod, get_module_opt, fun(_, _, Opt) -> case Opt of
+                                                             pem_file -> <<"">>;
+                                                             jwks_url -> <<"">>;
+                                                             key -> HS256Key
+                                                           end
+                                         end),
+    ?assertEqual(JWK, get_jwk(Server, Password)).
 
 get_jwk_rsa_test() ->
     Server = <<"Server">>,
+    Password = <<"PASS">>,
     PemFile = <<"PEM_FILE">>,
     JWK = #{<<"kty">> => <<"RSA">>, <<"k">> => <<"KEY">>},
     meck:new(jose_jwk, [non_strict]),
     meck:expect(jose_jwk, from_pem_file, fun(Input) -> case Input =:= PemFile of true -> JWK; _ -> <<"ANY_JWK">> end end),
     % meck:new(gen_mod, [non_strict]),
     meck:expect(gen_mod, get_module_opt, fun(_, _, pem_file) -> PemFile end),
-    ?assertEqual(JWK, get_jwk(Server)).
+    ?assertEqual(JWK, get_jwk(Server, Password)).
 
 check_password_jwt_is_map_test() ->
     ValidUser = <<"ValidUser">>,
@@ -220,12 +270,10 @@ check_password_jwt_is_map_test() ->
 
 check_password_jwt_test() ->
     ValidUser = <<"ValidUser">>,
-    InvalidUser = <<"InvalidUser">>,
     JWK = #{<<"kty">> => <<"oct">>, <<"k">> => <<"U0VDUkVU">>},
     ValidToken = <<"VALID">>,
     InvalidToken = <<"INVALID">>,
     ValidAlg = <<"VALID_ALG">>,
-    InvalidAlg = <<"INVALID_ALG">>,
     Fields = #{<<"sub">> => ValidUser},
     PemFile = <<"PEM_FILE">>,
     Server = <<"Server">>,
