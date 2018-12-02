@@ -22,7 +22,7 @@
 
 -module(ejabberd_auth_jwt).
 
--behaviour(gen_mod).
+-behaviour(ejabberd_auth).
 
 -author('me@ro.ger.io').
 
