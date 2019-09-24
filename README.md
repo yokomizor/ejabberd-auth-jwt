@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/yokomizor/ejabberd-auth-jwt.svg?branch=master)](https://travis-ci.org/yokomizor/ejabberd-auth-jwt)
 [![Coverage Status](https://img.shields.io/coveralls/github/yokomizor/ejabberd-auth-jwt/master.svg)](https://coveralls.io/github/yokomizor/ejabberd-auth-jwt?branch=master)
 
+**NOTE: Since version [19.08](https://github.com/processone/ejabberd/blob/master/CHANGELOG.md#version-1908) ([3e5c0a1d](https://github.com/processone/ejabberd/commit/3e5c0a1df84b3e7871178fea350d1c2ec2537c6d)), ejabberd officially supports JWT authentication. In other words, this modules is not necessary anymore if you are using 19.08 or newer.**
+
 This module enables [JWT](https://jwt.io/introduction/) authentication on [ejabberd](https://www.ejabberd.im/).
 
 ## Installation
